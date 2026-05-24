@@ -34,8 +34,69 @@ const ProjectDetailPage = () => {
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  // Drag and drop states
+  const [activeDragCol, setActiveDragCol] = useState(null);
+  const [draggingTaskId, setDraggingTaskId] = useState(null);
+
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
   const { register: regMember, handleSubmit: handleMemberSubmit, reset: resetMember } = useForm();
+
+  // Drag and drop handlers
+  const handleDragStart = (e, taskId) => {
+    setDraggingTaskId(taskId);
+    e.dataTransfer.setData('text/plain', taskId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingTaskId(null);
+    setActiveDragCol(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (status) => {
+    setActiveDragCol(status);
+  };
+
+  const handleDrop = async (e, status) => {
+    e.preventDefault();
+    setActiveDragCol(null);
+    const taskId = e.dataTransfer.getData('text/plain') || draggingTaskId;
+    if (!taskId) return;
+
+    const task = tasks.find(t => t._id === taskId);
+    if (!task || task.status === status) return;
+
+    try {
+      // Optimistic update
+      dispatch(taskUpdated({ ...task, status }));
+      
+      await api.put(`/tasks/${taskId}`, { status });
+      addToast(`Task moved to ${status}`, 'success');
+    } catch (err) {
+      addToast('Failed to move task', 'error');
+      // Revert optimistic update
+      dispatch(taskUpdated(task));
+    } finally {
+      setDraggingTaskId(null);
+    }
+  };
+
+  // Member removal handler
+  const handleRemoveMember = async (memberId, memberName) => {
+    if (!window.confirm(`Are you sure you want to remove ${memberName} from this project?`)) return;
+    try {
+      await api.delete(`/projects/${projectId}/members/${memberId}`);
+      addToast(`${memberName} removed from project`, 'success');
+      // Refetch project to get updated member list
+      const { data: updated } = await api.get(`/projects/${projectId}`);
+      setProject(updated);
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to remove member', 'error');
+    }
+  };
 
   // Socket handlers
   const handleTaskCreated = useCallback((task) => {
@@ -268,11 +329,25 @@ const ProjectDetailPage = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <Users size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 4 }}>Members:</span>
-          {project.members.map((m, i) => (
-            <span key={i} className="badge badge-in-progress" style={{ fontSize: 11 }}>
-              {m.user?.name || 'User'} ({m.role})
-            </span>
-          ))}
+          {project.members.map((m, i) => {
+            const isMe = m.user?._id === user?._id;
+            const canRemove = myRole === 'Admin' && !isMe;
+            return (
+              <span key={i} className="badge badge-in-progress" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                {m.user?.name || 'User'} ({m.role})
+                {canRemove && (
+                  <button
+                    type="button"
+                    style={{ border: 'none', background: 'none', color: 'var(--accent-secondary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: 0 }}
+                    onClick={() => handleRemoveMember(m.user?._id, m.user?.name)}
+                    title="Remove member"
+                  >
+                    <X size={10} />
+                  </button>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -342,64 +417,97 @@ const ProjectDetailPage = () => {
                 </span>
                 <span className="kanban-column-count">{colTasks.length}</span>
               </div>
-              <div className="kanban-column-body">
+              <div 
+                onDragOver={handleDragOver}
+                onDragEnter={() => handleDragEnter(status)}
+                onDragLeave={() => setActiveDragCol(null)}
+                onDrop={(e) => handleDrop(e, status)}
+                className={`kanban-column-body ${activeDragCol === status ? 'drag-hover' : ''}`}
+              >
                 {colTasks.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>
                     No tasks
                   </div>
                 ) : (
-                  colTasks.map((task) => (
-                    <div key={task._id} className="task-card">
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTasks.includes(task._id)}
-                          onChange={() => toggleSelect(task._id)}
-                          style={{ marginTop: 3, accentColor: 'var(--accent-primary)' }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div className="task-card-title" onClick={() => openEditModal(task)} style={{ cursor: 'pointer' }}>
-                            {task.title}
-                          </div>
-                          <div className="task-card-meta">
-                            <span className={`badge badge-${task.priority.toLowerCase()}`}>{task.priority}</span>
-                            {task.dueDate && (
-                              <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Calendar size={10} />
-                                {new Date(task.dueDate).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                            <div className="task-card-assignees">
-                              {task.assignees?.slice(0, 3).map((a, i) => (
-                                <div key={i} className="task-card-assignee">
-                                  {a.name?.[0]?.toUpperCase() || '?'}
-                                </div>
-                              ))}
+                  colTasks.map((task) => {
+                    const isDraggable = myRole === 'Admin' || myRole === 'Team Member';
+                    const coverImage = task.attachments?.find(att => 
+                      att.original_name?.match(/\.(jpeg|jpg|gif|png|webp)$/i) || att.url?.match(/\.(jpeg|jpg|gif|png|webp)/i)
+                    );
+                    return (
+                      <div 
+                        key={task._id} 
+                        draggable={isDraggable}
+                        onDragStart={(e) => handleDragStart(e, task._id)}
+                        onDragEnd={handleDragEnd}
+                        className={`task-card ${draggingTaskId === task._id ? 'dragging' : ''}`}
+                      >
+                        {coverImage && (
+                          <img 
+                            src={coverImage.url} 
+                            alt="Cover" 
+                            style={{ 
+                              width: 'calc(100% + 28px)', 
+                              margin: '-14px -14px 12px -14px', 
+                              height: '110px', 
+                              objectFit: 'cover', 
+                              borderTopLeftRadius: 'var(--radius-sm)', 
+                              borderTopRightRadius: 'var(--radius-sm)',
+                              display: 'block'
+                            }} 
+                          />
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.includes(task._id)}
+                            onChange={() => toggleSelect(task._id)}
+                            style={{ marginTop: 3, accentColor: 'var(--accent-primary)' }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div className="task-card-title" onClick={() => openEditModal(task)} style={{ cursor: 'pointer' }}>
+                              {task.title}
                             </div>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              {task.attachments?.length > 0 && (
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 2 }}>
-                                  <Paperclip size={10} /> {task.attachments.length}
+                            <div className="task-card-meta">
+                              <span className={`badge badge-${task.priority.toLowerCase()}`}>{task.priority}</span>
+                              {task.dueDate && (
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <Calendar size={10} />
+                                  {new Date(task.dueDate).toLocaleDateString()}
                                 </span>
                               )}
-                              {(myRole === 'Admin' || myRole === 'Team Member') && (
-                                <>
-                                  <button className="btn btn-icon btn-ghost btn-sm" onClick={() => openEditModal(task)} title="Edit">
-                                    <Edit3 size={12} />
-                                  </button>
-                                  <button className="btn btn-icon btn-ghost btn-sm" onClick={() => handleDeleteTask(task._id)} title="Delete">
-                                    <Trash2 size={12} />
-                                  </button>
-                                </>
-                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                              <div className="task-card-assignees">
+                                {task.assignees?.slice(0, 3).map((a, i) => (
+                                  <div key={i} className="task-card-assignee">
+                                    {a.name?.[0]?.toUpperCase() || '?'}
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                {task.attachments?.length > 0 && (
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Paperclip size={10} /> {task.attachments.length}
+                                  </span>
+                                )}
+                                {(myRole === 'Admin' || myRole === 'Team Member') && (
+                                  <>
+                                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => openEditModal(task)} title="Edit">
+                                      <Edit3 size={12} />
+                                    </button>
+                                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => handleDeleteTask(task._id)} title="Delete">
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -480,36 +588,63 @@ const ProjectDetailPage = () => {
               onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
             />
             {files.length > 0 && (
-              <div className="file-list">
-                {files.map((f, i) => (
-                  <div key={i} className="file-item">
-                    <div className="file-item-info">
-                      <Paperclip size={12} />
-                      <span>{f.name}</span>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({(f.size / 1024).toFixed(1)} KB)</span>
+              <div className="attachments-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12, marginTop: 12 }}>
+                {files.map((f, i) => {
+                  const isImg = f.type?.startsWith('image/');
+                  return (
+                    <div key={i} className="attachment-preview-card">
+                      {isImg ? (
+                        <img src={URL.createObjectURL(f)} alt={f.name} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', marginBottom: 6 }} />
+                      ) : (
+                        <div style={{ height: '80px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', marginBottom: 6 }}>
+                          <Paperclip size={24} style={{ color: 'var(--text-muted)' }} />
+                        </div>
+                      )}
+                      <span style={{ fontSize: 11, color: 'var(--text-primary)', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={f.name}>{f.name}</span>
+                      <button 
+                        type="button"
+                        className="btn btn-icon btn-ghost btn-sm" 
+                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '50%', padding: 4 }} 
+                        onClick={(e) => { e.preventDefault(); setFiles(prev => prev.filter((_, idx) => idx !== i)); }}
+                      >
+                        <X size={10} />
+                      </button>
                     </div>
-                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}>
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {/* Existing attachments for edit */}
             {editingTask?.attachments?.length > 0 && (
-              <div className="file-list" style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Existing files:</div>
-                {editingTask.attachments.map((att, i) => (
-                  <div key={i} className="file-item">
-                    <div className="file-item-info">
-                      <Paperclip size={12} />
-                      <span>{att.original_name}</span>
-                    </div>
-                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="btn btn-icon btn-ghost btn-sm">
-                      <Download size={12} />
-                    </a>
-                  </div>
-                ))}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Existing files:</div>
+                <div className="attachments-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
+                  {editingTask.attachments.map((att, i) => {
+                    const isImg = att.original_name?.match(/\.(jpeg|jpg|gif|png|webp)$/i) || att.url?.match(/\.(jpeg|jpg|gif|png|webp)/i);
+                    return (
+                      <div key={i} className="attachment-preview-card">
+                        {isImg ? (
+                          <img src={att.url} alt={att.original_name} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '4px', marginBottom: 6, cursor: 'pointer' }} onClick={() => window.open(att.url, '_blank')} />
+                        ) : (
+                          <div style={{ height: '80px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', marginBottom: 6 }}>
+                            <Paperclip size={24} style={{ color: 'var(--text-muted)' }} />
+                          </div>
+                        )}
+                        <span style={{ fontSize: 11, color: 'var(--text-primary)', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={att.original_name}>{att.original_name}</span>
+                        <a 
+                          href={att.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-icon btn-ghost btn-sm" 
+                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '50%', padding: 4 }}
+                          title="Download"
+                        >
+                          <Download size={10} />
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

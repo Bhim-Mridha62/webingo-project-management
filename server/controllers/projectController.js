@@ -103,7 +103,7 @@ exports.addMember = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found. They must register first.' });
 
-    const isMember = project.members.find(m => m.user.toString() === user._id.toString());
+    const isMember = project.members.find(m => (m.user._id || m.user).toString() === user._id.toString());
     if (isMember) return res.status(400).json({ message: 'User is already a member' });
 
     project.members.push({ user: user._id, role: role || 'Viewer' });
@@ -132,7 +132,7 @@ exports.removeMember = async (req, res) => {
       return res.status(400).json({ message: 'Cannot remove yourself from the project' });
     }
 
-    project.members = project.members.filter(m => m.user.toString() !== memberId);
+    project.members = project.members.filter(m => (m.user._id || m.user).toString() !== memberId);
     await project.save();
 
     res.json({ message: 'Member removed' });

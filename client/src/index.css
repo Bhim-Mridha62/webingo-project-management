@@ -827,3 +827,128 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* ==========================================
+   Enhancements: Drag-Drop, Dropdowns, Tabs
+   ========================================== */
+
+/* Drag and Drop styles */
+.kanban-column-body.drag-hover {
+  background: rgba(108, 99, 255, 0.08) !important;
+  border: 2px dashed rgba(108, 99, 255, 0.4) !important;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.task-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  border-color: var(--accent-primary);
+}
+
+.task-card:active {
+  cursor: grabbing;
+}
+
+/* Project Action Dropdown styling */
+.project-actions-dropdown {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-lg) !important;
+  min-width: 140px;
+  z-index: 200;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+.dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 10px 14px !important;
+  background: none !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: var(--transition) !important;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: white !important;
+}
+
+.dropdown-item-danger {
+  color: var(--accent-secondary) !important;
+}
+
+.dropdown-item-danger:hover {
+  background: rgba(233, 69, 96, 0.1) !important;
+  color: var(--accent-secondary) !important;
+}
+
+/* Image Attachment Previews & Cover styles */
+.attachment-preview-card {
+  position: relative;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-card);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: var(--transition);
+}
+
+.attachment-preview-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Tabs System */
+.tabs-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent-primary);
+  background: rgba(108, 99, 255, 0.1);
+}
+
