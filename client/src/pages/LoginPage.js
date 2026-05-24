@@ -13,7 +13,7 @@ const LoginPage = () => {
   const addToast = useToast();
   const { loading } = useSelector((state) => state.auth);
 
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, setValue, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data) => {
     const result = await dispatch(login(data));
@@ -28,6 +28,7 @@ const LoginPage = () => {
         navigate('/dashboard');
       }
     } else {
+      setValue("password", "");
       addToast(result.payload || 'Login failed', 'error');
     }
   };

@@ -12,6 +12,7 @@ import {
   Plus, Search, Filter, UserPlus, Paperclip, Calendar,
   Trash2, Edit3, Download, X, Users
 } from 'lucide-react';
+import { getDueStatus } from '../utils/dateUtils';
 
 const STATUSES = ['Todo', 'In Progress', 'Review', 'Completed'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
@@ -72,7 +73,7 @@ const ProjectDetailPage = () => {
     try {
       // Optimistic update
       dispatch(taskUpdated({ ...task, status }));
-      
+
       await api.put(`/tasks/${taskId}`, { status });
       addToast(`Task moved to ${status}`, 'success');
     } catch (err) {
@@ -141,7 +142,7 @@ const ProjectDetailPage = () => {
       formData.append('status', data.status || 'Todo');
       formData.append('priority', data.priority || 'Medium');
       formData.append('dueDate', data.dueDate || '');
-      
+
       // Collect selected assignees
       const selectedAssignees = project?.members
         ?.filter((_, i) => data[`assignee_${i}`])
@@ -417,7 +418,7 @@ const ProjectDetailPage = () => {
                 </span>
                 <span className="kanban-column-count">{colTasks.length}</span>
               </div>
-              <div 
+              <div
                 onDragOver={handleDragOver}
                 onDragEnter={() => handleDragEnter(status)}
                 onDragLeave={() => setActiveDragCol(null)}
@@ -431,30 +432,30 @@ const ProjectDetailPage = () => {
                 ) : (
                   colTasks.map((task) => {
                     const isDraggable = myRole === 'Admin' || myRole === 'Team Member';
-                    const coverImage = task.attachments?.find(att => 
+                    const coverImage = task.attachments?.find(att =>
                       att.original_name?.match(/\.(jpeg|jpg|gif|png|webp)$/i) || att.url?.match(/\.(jpeg|jpg|gif|png|webp)/i)
                     );
                     return (
-                      <div 
-                        key={task._id} 
+                      <div
+                        key={task._id}
                         draggable={isDraggable}
                         onDragStart={(e) => handleDragStart(e, task._id)}
                         onDragEnd={handleDragEnd}
                         className={`task-card ${draggingTaskId === task._id ? 'dragging' : ''}`}
                       >
                         {coverImage && (
-                          <img 
-                            src={coverImage.url} 
-                            alt="Cover" 
-                            style={{ 
-                              width: 'calc(100% + 28px)', 
-                              margin: '-14px -14px 12px -14px', 
-                              height: '110px', 
-                              objectFit: 'cover', 
-                              borderTopLeftRadius: 'var(--radius-sm)', 
+                          <img
+                            src={coverImage.url}
+                            alt="Cover"
+                            style={{
+                              width: 'calc(100% + 28px)',
+                              margin: '-14px -14px 12px -14px',
+                              height: '110px',
+                              objectFit: 'cover',
+                              borderTopLeftRadius: 'var(--radius-sm)',
                               borderTopRightRadius: 'var(--radius-sm)',
                               display: 'block'
-                            }} 
+                            }}
                           />
                         )}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -473,7 +474,7 @@ const ProjectDetailPage = () => {
                               {task.dueDate && (
                                 <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <Calendar size={10} />
-                                  {new Date(task.dueDate).toLocaleDateString()}
+                                  {getDueStatus(task.dueDate)}
                                 </span>
                               )}
                             </div>
@@ -601,10 +602,10 @@ const ProjectDetailPage = () => {
                         </div>
                       )}
                       <span style={{ fontSize: 11, color: 'var(--text-primary)', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={f.name}>{f.name}</span>
-                      <button 
+                      <button
                         type="button"
-                        className="btn btn-icon btn-ghost btn-sm" 
-                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '50%', padding: 4 }} 
+                        className="btn btn-icon btn-ghost btn-sm"
+                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '50%', padding: 4 }}
                         onClick={(e) => { e.preventDefault(); setFiles(prev => prev.filter((_, idx) => idx !== i)); }}
                       >
                         <X size={10} />
@@ -631,11 +632,11 @@ const ProjectDetailPage = () => {
                           </div>
                         )}
                         <span style={{ fontSize: 11, color: 'var(--text-primary)', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={att.original_name}>{att.original_name}</span>
-                        <a 
-                          href={att.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="btn btn-icon btn-ghost btn-sm" 
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-icon btn-ghost btn-sm"
                           style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: '50%', padding: 4 }}
                           title="Download"
                         >
