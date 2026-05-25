@@ -3,12 +3,27 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Bell, CheckCircle } from 'lucide-react';
 import { markAllRead } from '../store/slices/notificationSlice';
 
-const NotificationBell = () => {
+const NotificationBell = ({ screen = "pc" }) => {
     const dispatch = useDispatch();
     const notifications = useSelector((state) => state.notifications.items);
     const unreadCount = notifications.filter((item) => !item.read).length;
     const [open, setOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(window?.innerWidth <= 1024);
     const ref = useRef(null);
+
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 1024);
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -27,7 +42,9 @@ const NotificationBell = () => {
             dispatch(markAllRead());
         }
     };
-
+    if (isMobile && screen === "pc") {
+        return null;
+    }
     return (
         <div className="notification-bell" ref={ref}>
             <button type="button" className="notification-button" onClick={togglePanel}>
