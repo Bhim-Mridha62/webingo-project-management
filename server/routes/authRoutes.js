@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../middlewares/uploadMiddleware');
 const asyncHandler = require('../utils/asyncHandler');
-const { register, login, refreshToken, logout, getMe, updateProfile, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, verifyEmailToken, resendVerificationEmail, refreshToken, logout, getMe, updateProfile, forgotPassword, resetPassword } = require('../controllers/authController');
 const { protect } = require('../middlewares/authMiddleware');
 const rateLimit = require('express-rate-limit');
 
@@ -14,6 +14,8 @@ const authLimiter = rateLimit({
 
 router.post('/register', authLimiter, asyncHandler(register));
 router.post('/login', authLimiter, asyncHandler(login));
+router.get('/verify-email/:token', asyncHandler(verifyEmailToken));
+router.post('/resend-verification', authLimiter, asyncHandler(resendVerificationEmail));
 router.post('/refresh', asyncHandler(refreshToken));
 router.post('/logout', protect, asyncHandler(logout));
 router.get('/me', protect, asyncHandler(getMe));

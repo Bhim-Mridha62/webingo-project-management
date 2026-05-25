@@ -9,6 +9,14 @@ export const login = createAsyncThunk('auth/login', async (credentials, thunkAPI
     localStorage.setItem('refreshToken', response.data.refreshToken);
     return response.data;
   } catch (error) {
+    // Check if it's an email verification error
+    if (error.response?.status === 403 && error.response?.data?.needsEmailVerification) {
+      return thunkAPI.rejectWithValue({
+        message: error.response.data.message,
+        needsEmailVerification: true,
+        email: error.response.data.email
+      });
+    }
     return thunkAPI.rejectWithValue(error.response?.data?.message || 'Login failed');
   }
 });
@@ -48,13 +56,13 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // login
-      .addCase(login.pending,    (state) => { state.loading = true;  state.error = null; })
-      .addCase(login.fulfilled,  (state, action) => { state.loading = false; state.user = action.payload; })
-      .addCase(login.rejected,   (state, action) => { state.loading = false; state.error = action.payload; })
+      .addCase(login.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(login.fulfilled, (state, action) => { state.loading = false; state.user = action.payload; })
+      .addCase(login.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
       // fetchMe (bootstrap)
-      .addCase(fetchMe.pending,   (state) => { state.bootstrapping = true; })
+      .addCase(fetchMe.pending, (state) => { state.bootstrapping = true; })
       .addCase(fetchMe.fulfilled, (state, action) => { state.user = action.payload; state.bootstrapping = false; })
-      .addCase(fetchMe.rejected,  (state) => { state.user = null; state.bootstrapping = false; });
+      .addCase(fetchMe.rejected, (state) => { state.user = null; state.bootstrapping = false; });
   },
 });
 

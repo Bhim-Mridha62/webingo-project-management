@@ -2,6 +2,7 @@ const {
   formatAuthResponse,
   createUser,
   authenticateUser,
+  verifyEmail,
   refreshTokens,
   logoutUser,
   getUserProfile,
@@ -18,7 +19,10 @@ exports.register = async (req, res) => {
     return res.status(400).json({ message: 'User already exists' });
   }
 
-  res.status(201).json(formatAuthResponse(result.user, result.tokens));
+  res.status(201).json({
+    message: 'Registration successful. Please verify your email.',
+    ...formatAuthResponse(result.user, result.tokens)
+  });
 };
 
 exports.login = async (req, res) => {
@@ -29,8 +33,61 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
 
+  // If email is not verified, return pending verification response
+  if (!result.tokens) {
+    return res.status(403).json({
+      message: 'Please verify your email before logging in',
+      email: result.user.email,
+      needsEmailVerification: true
+    });
+  }
+
   res.json(formatAuthResponse(result.user, result.tokens));
 };
+
+exports.verifyEmailToken = async (req, res) => {
+  const { token } = req.params;
+  const user = await verifyEmail(token);
+
+  if (!user) {
+    return res.status(400).json({ message: 'Invalid or expired verification link' });
+  }
+
+  res.json({ message: 'Email verified successfully', user: { email: user.email, name: user.name } });
+};
+
+exports.resendVerificationEmail = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const User = require('../models/User');
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: 'Email already verified' });
+    }
+
+    // Generate new verification token
+    const crypto = require('crypto');
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationExpire = Date.now() + 1 * 60 * 1000;
+    await user.save();
+
+    // Send verification email
+    const { sendEmailVerificationEmail } = require('../services/emailService');
+    await sendEmailVerificationEmail(user.email, verificationToken);
+
+    res.json({ message: 'Verification email sent' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to resend verification email' });
+  }
+};
+
 
 exports.refreshToken = async (req, res) => {
   const { token } = req.body;

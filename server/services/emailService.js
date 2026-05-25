@@ -98,3 +98,23 @@ exports.sendTaskStatusChangeEmail = async (to, updaterName, taskTitle, status, p
 
   await transporter.sendMail(mailOptions);
 };
+
+exports.sendEmailVerificationEmail = async (to, verificationToken) => {
+  const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${verificationToken}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+    to,
+    subject: 'Verify Your Email - Webingo Project Management',
+    html: `
+      <div style="font-family: 'Inter', Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #1a1a2e; padding: 32px; border-radius: 12px;">
+        <h2 style="color: #6c63ff; margin-bottom: 16px;">Verify Your Email</h2>
+        <p style="color: #e8e8f0;">Welcome to Webingo! Please verify your email address by clicking the button below:</p>
+        <a href="${verificationUrl}" style="display: inline-block; background: #6c63ff; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 16px 0; font-weight: 600;">Verify Email</a>
+        <p style="color: #a0a0b8; font-size: 12px;">This link expires in 1 minute. If you didn't create this account, ignore this email.</p>
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};

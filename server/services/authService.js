@@ -2,13 +2,14 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { generateTokens, verifyRefreshToken } = require('./tokenService');
 const { uploadToCloudinary } = require('./cloudinaryService');
-const { sendPasswordResetEmail } = require('./emailService');
+const { sendPasswordResetEmail, sendEmailVerificationEmail } = require('./emailService');
 
 const formatAuthResponse = (user, tokens) => ({
     _id: user._id,
     name: user.name,
     email: user.email,
     profilePicture: user.profilePicture,
+    isEmailVerified: user.isEmailVerified,
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
 });
@@ -18,8 +19,23 @@ const createUser = async ({ name, email, password }) => {
     if (existingUser) return null;
 
     const user = await User.create({ name, email, password });
-    const tokens = generateTokens(user._id);
 
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    user.emailVerificationExpire = Date.now() + 1 * 60 * 1000; // 1 minute
+    await user.save();
+
+    // Send verification email
+    try {
+        await sendEmailVerificationEmail(user.email, verificationToken);
+    } catch (error) {
+        console.error('Failed to send verification email:', error);
+        // Don't fail registration if email fails, user can still verify later
+    }
+
+    // Generate tokens for immediate login
+    const tokens = generateTokens(user._id);
     user.refreshToken = tokens.refreshToken;
     await user.save();
 
@@ -30,11 +46,33 @@ const authenticateUser = async ({ email, password }) => {
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password))) return null;
 
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+        return { user, tokens: null, needsEmailVerification: true };
+    }
+
     const tokens = generateTokens(user._id);
     user.refreshToken = tokens.refreshToken;
     await user.save();
 
     return { user, tokens };
+};
+
+const verifyEmail = async (token) => {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+        emailVerificationToken: hashedToken,
+        emailVerificationExpire: { $gt: Date.now() },
+    });
+
+    if (!user) return null;
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+    await user.save();
+
+    return user;
 };
 
 const refreshTokens = async (token) => {
@@ -132,6 +170,7 @@ module.exports = {
     formatAuthResponse,
     createUser,
     authenticateUser,
+    verifyEmail,
     refreshTokens,
     logoutUser,
     getUserProfile,

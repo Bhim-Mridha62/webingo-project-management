@@ -27,9 +27,10 @@ const RegisterPage = () => {
       });
       localStorage.setItem('token', res.data.accessToken);
       localStorage.setItem('refreshToken', res.data.refreshToken);
-      addToast('Account created successfully!', 'success');
-      navigate('/dashboard');
-      window.location.reload();
+      addToast(res.data.message || 'Account created! Please verify your email.', 'success');
+      // Store email for reference on verification page
+      sessionStorage.setItem('verificationEmail', res.data.email);
+      navigate('/verify-email-pending');
     } catch (err) {
       addToast(err.response?.data?.message || 'Registration failed', 'error');
     } finally {
