@@ -4,13 +4,13 @@ const { uploadToCloudinary } = require('../services/cloudinaryService');
 exports.createTask = async (req, res) => {
   try {
     const { projectId, title, description, status, priority, assignees, dueDate } = req.body;
-    
+
     // Parse assignees if it comes as a stringified array from FormData
     let parsedAssignees = [];
     if (assignees) {
       try {
         parsedAssignees = JSON.parse(assignees);
-      } catch(e) {
+      } catch (e) {
         parsedAssignees = Array.isArray(assignees) ? assignees : [assignees];
       }
     }
@@ -35,8 +35,8 @@ exports.createTask = async (req, res) => {
       createdBy: req.user._id
     });
 
-    const populatedTask = await Task.findById(task._id).populate('assignees', 'name email');
-    
+    const populatedTask = await Task.findById(task._id).populate('assignees', 'name email profilePicture');
+
     // Emit via Socket.io
     req.io.to(projectId).emit('task_created', populatedTask);
 
@@ -49,7 +49,7 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     const { projectId, status, priority } = req.query;
-    
+
     if (!projectId) return res.status(400).json({ message: 'Project ID is required' });
 
     let query = { project: projectId };
@@ -57,7 +57,7 @@ exports.getTasks = async (req, res) => {
     if (priority) query.priority = priority;
 
     const tasks = await Task.find(query)
-      .populate('assignees', 'name email')
+      .populate('assignees', 'name email profilePicture')
       .sort({ createdAt: -1 });
 
     res.json(tasks);
@@ -73,7 +73,7 @@ exports.updateTask = async (req, res) => {
     if (req.body.assignees) {
       try {
         updates.assignees = JSON.parse(req.body.assignees);
-      } catch(e) {
+      } catch (e) {
         updates.assignees = Array.isArray(req.body.assignees) ? req.body.assignees : [req.body.assignees];
       }
     }
@@ -81,7 +81,7 @@ exports.updateTask = async (req, res) => {
     if (req.files && req.files.length > 0) {
       const task = await Task.findById(req.params.id);
       if (!task) return res.status(404).json({ message: 'Task not found' });
-      
+
       const newAttachments = [];
       for (const file of req.files) {
         const uploadResult = await uploadToCloudinary(file.buffer, file.originalname);
@@ -90,10 +90,10 @@ exports.updateTask = async (req, res) => {
       updates.attachments = [...task.attachments, ...newAttachments];
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(req.params.id, 
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id,
       updates,
       { new: true }
-    ).populate('assignees', 'name email');
+    ).populate('assignees', 'name email profilePicture');
 
     if (!updatedTask) return res.status(404).json({ message: 'Task not found' });
 

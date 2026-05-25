@@ -5,7 +5,7 @@ import { fetchProjects } from '../store/slices/projectSlice';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useToast } from '../components/Toast';
 import api from '../services/api';
-import { 
+import {
   FolderKanban, CheckCircle, Clock, AlertTriangle, TrendingUp,
   MoreVertical, Archive, Trash2
 } from 'lucide-react';
@@ -154,8 +154,8 @@ const DashboardPage = () => {
                 {/* 3 dot actions */}
                 {isAdmin && (
                   <div className="project-actions-dropdown">
-                    <button 
-                      className="btn btn-icon btn-ghost btn-sm" 
+                    <button
+                      className="btn btn-icon btn-ghost btn-sm"
                       style={{ borderRadius: '50%', padding: 6, border: 'none', background: 'transparent' }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -198,7 +198,15 @@ const DashboardPage = () => {
                   <div className="project-card-members">
                     {project.members?.slice(0, 4).map((m, i) => (
                       <div key={i} className="project-card-member">
-                        {m.user?.name?.[0]?.toUpperCase() || '?'}
+                        {m.user?.profilePicture ? (
+                          <img
+                            src={m.user.profilePicture}
+                            alt={m.user.name || 'Member'}
+                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          m.user?.name?.[0]?.toUpperCase() || '?'
+                        )}
                       </div>
                     ))}
                     {project.members?.length > 4 && (

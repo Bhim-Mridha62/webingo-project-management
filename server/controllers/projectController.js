@@ -32,8 +32,8 @@ exports.createProject = async (req, res) => {
 exports.getProjects = async (req, res) => {
   try {
     const projects = await Project.find({ 'members.user': req.user._id })
-      .populate('members.user', 'name email')
-      .populate('createdBy', 'name email')
+      .populate('members.user', 'name email profilePicture')
+      .populate('createdBy', 'name email profilePicture')
       .sort({ createdAt: -1 });
     res.json(projects);
   } catch (error) {
@@ -46,7 +46,7 @@ exports.getProjectById = async (req, res) => {
     const project = await Project.findOne({
       _id: req.params.id,
       'members.user': req.user._id
-    }).populate('members.user', 'name email');
+    }).populate('members.user', 'name email profilePicture');
 
     if (!project) return res.status(404).json({ message: 'Project not found' });
     res.json(project);
@@ -65,7 +65,7 @@ exports.updateProject = async (req, res) => {
     if (status) project.status = status;
 
     await project.save();
-    await project.populate('members.user', 'name email');
+    await project.populate('members.user', 'name email profilePicture');
 
     await ActivityLog.create({
       project: project._id,
@@ -108,7 +108,7 @@ exports.addMember = async (req, res) => {
 
     project.members.push({ user: user._id, role: role || 'Viewer' });
     await project.save();
-    await project.populate('members.user', 'name email');
+    await project.populate('members.user', 'name email profilePicture');
 
     await ActivityLog.create({
       project: project._id,

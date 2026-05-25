@@ -31,14 +31,14 @@ const TaskListView = ({
   const renderSortIcon = (field) => {
     if (sortBy !== field) return <ArrowUpDown size={12} style={{ marginLeft: 4, opacity: 0.3 }} />;
     return (
-      <ArrowUpDown 
-        size={12} 
-        style={{ 
-          marginLeft: 4, 
+      <ArrowUpDown
+        size={12}
+        style={{
+          marginLeft: 4,
           color: 'var(--accent-primary)',
           transform: sortOrder === 'desc' ? 'rotate(180deg)' : 'none',
           transition: 'var(--transition)'
-        }} 
+        }}
       />
     );
   };
@@ -62,9 +62,9 @@ const TaskListView = ({
                   style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer', width: '15px', height: '15px' }}
                 />
               </th>
-              
+
               {/* Task Title Header */}
-              <th 
+              <th
                 onClick={() => handleHeaderClick('title')}
                 style={{ padding: '16px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}
               >
@@ -74,7 +74,7 @@ const TaskListView = ({
               </th>
 
               {/* Status Header */}
-              <th 
+              <th
                 onClick={() => handleHeaderClick('status')}
                 style={{ padding: '16px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', width: '140px' }}
               >
@@ -84,7 +84,7 @@ const TaskListView = ({
               </th>
 
               {/* Priority Header */}
-              <th 
+              <th
                 onClick={() => handleHeaderClick('priority')}
                 style={{ padding: '16px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', width: '130px' }}
               >
@@ -94,7 +94,7 @@ const TaskListView = ({
               </th>
 
               {/* Due Date Header */}
-              <th 
+              <th
                 onClick={() => handleHeaderClick('dueDate')}
                 style={{ padding: '16px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', width: '150px' }}
               >
@@ -136,7 +136,7 @@ const TaskListView = ({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.15 }}
-                      style={{ 
+                      style={{
                         borderBottom: '1px solid var(--border-color)',
                         background: selectedTasks.includes(task._id) ? 'rgba(108, 99, 255, 0.03)' : 'transparent',
                         transition: 'background 0.2s ease'
@@ -155,11 +155,11 @@ const TaskListView = ({
 
                       {/* Title & Description Cell */}
                       <td style={{ padding: '14px 20px' }}>
-                        <div 
-                          onClick={() => onEdit(task)} 
-                          style={{ 
-                            fontWeight: 600, 
-                            color: 'var(--text-primary)', 
+                        <div
+                          onClick={() => onEdit(task)}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
                             cursor: 'pointer',
                             fontSize: '14px',
                             display: 'flex',
@@ -198,8 +198,8 @@ const TaskListView = ({
                       {/* Due Date Cell */}
                       <td style={{ padding: '14px 20px' }}>
                         {task.dueDate ? (
-                          <span 
-                            style={{ 
+                          <span
+                            style={{
                               fontSize: '13px',
                               color: isExpired ? 'var(--accent-secondary)' : isDueSoon ? 'var(--accent-warning)' : 'var(--text-secondary)',
                               fontWeight: isExpired || isDueSoon ? 600 : 500,
@@ -220,9 +220,9 @@ const TaskListView = ({
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           {task.assignees?.slice(0, 4).map((a, i) => (
-                            <div 
-                              key={i} 
-                              className="task-card-assignee" 
+                            <div
+                              key={i}
+                              className="task-card-assignee"
                               title={a.name || 'User'}
                               style={{
                                 width: '26px',
@@ -237,14 +237,23 @@ const TaskListView = ({
                                 color: 'white',
                                 border: '2px solid var(--bg-secondary)',
                                 marginLeft: i > 0 ? '-6px' : '0',
-                                zIndex: 4 - i
+                                zIndex: 4 - i,
+                                overflow: 'hidden'
                               }}
                             >
-                              {a.name?.[0]?.toUpperCase() || '?'}
+                              {a.profilePicture ? (
+                                <img
+                                  src={a.profilePicture}
+                                  alt={a.name || 'Assignee'}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                a.name?.[0]?.toUpperCase() || '?'
+                              )}
                             </div>
                           ))}
                           {task.assignees?.length > 4 && (
-                            <div 
+                            <div
                               style={{
                                 width: '26px',
                                 height: '26px',
@@ -274,18 +283,18 @@ const TaskListView = ({
                       {/* Actions Cell */}
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                          <button 
-                            className="btn btn-icon btn-ghost btn-sm" 
-                            onClick={() => onEdit(task)} 
+                          <button
+                            className="btn btn-icon btn-ghost btn-sm"
+                            onClick={() => onEdit(task)}
                             title="Edit"
                             style={{ padding: '6px' }}
                           >
                             <Edit3 size={13} />
                           </button>
                           {(myRole === 'Admin' || myRole === 'Team Member') && (
-                            <button 
-                              className="btn btn-icon btn-ghost btn-sm" 
-                              onClick={() => onDelete(task._id)} 
+                            <button
+                              className="btn btn-icon btn-ghost btn-sm"
+                              onClick={() => onDelete(task._id)}
                               title="Delete"
                               style={{ padding: '6px', color: 'var(--accent-secondary)' }}
                             >

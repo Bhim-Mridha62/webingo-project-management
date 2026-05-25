@@ -54,7 +54,17 @@ const Sidebar = () => {
 
         <div className="sidebar-footer">
           <div className="sidebar-user">
-            <div className="sidebar-avatar">{getInitials(user?.name)}</div>
+            <div className="sidebar-avatar">
+              {user?.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt={user.name || 'User'}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                getInitials(user?.name)
+              )}
+            </div>
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user?.name || 'User'}</div>
               <div className="sidebar-user-email">{user?.email || ''}</div>
