@@ -52,7 +52,7 @@ const RegisterPage = () => {
             <input
               type="text"
               className="form-input"
-              placeholder="John Doe"
+              placeholder="Enter your name"
               {...register('name', { required: 'Name is required' })}
             />
             {errors.name && <div className="form-error">{errors.name.message}</div>}
@@ -63,7 +63,7 @@ const RegisterPage = () => {
             <input
               type="email"
               className="form-input"
-              placeholder="you@example.com"
+              placeholder="Enter your email"
               {...register('email', { required: 'Email is required' })}
             />
             {errors.email && <div className="form-error">{errors.email.message}</div>}

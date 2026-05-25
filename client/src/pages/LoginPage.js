@@ -57,7 +57,7 @@ const LoginPage = () => {
             <input
               type="email"
               className="form-input"
-              placeholder="you@example.com"
+              placeholder="Enter your email"
               {...register('email', { required: 'Email is required' })}
             />
             {errors.email && <div className="form-error">{errors.email.message}</div>}
