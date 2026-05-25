@@ -4,19 +4,21 @@ import { Provider, useSelector, useDispatch } from 'react-redux';
 import { store } from './store';
 import { ToastProvider } from './components/Toast';
 import Sidebar from './components/Sidebar';
+import { useSocket } from './hooks/useSocket';
+import { addNotification } from './store/slices/notificationSlice';
 import { fetchMe, logout } from './store/slices/authSlice';
 import './index.css';
 
 // ── Code-split pages ──────────────────────────────────────────────────────────
-const LoginPage          = lazy(() => import('./pages/LoginPage'));
-const RegisterPage       = lazy(() => import('./pages/RegisterPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
-const ResetPasswordPage  = lazy(() => import('./pages/ResetPasswordPage'));
-const InvitePage         = lazy(() => import('./pages/InvitePage'));
-const DashboardPage      = lazy(() => import('./pages/DashboardPage'));
-const ProjectsPage       = lazy(() => import('./pages/ProjectsPage'));
-const ProjectDetailPage  = lazy(() => import('./pages/ProjectDetailPage'));
-const SettingsPage       = lazy(() => import('./pages/SettingsPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const InvitePage = lazy(() => import('./pages/InvitePage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 // ── Full-page loader ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -47,12 +49,24 @@ const PublicOnlyRoute = ({ children }) => {
 };
 
 // ── App layout for authenticated pages ────────────────────────────────────────
-const AppLayout = ({ children }) => (
-  <div className="app-layout">
-    <Sidebar />
-    <main className="main-content">{children}</main>
-  </div>
-);
+const AppLayout = ({ children }) => {
+  const dispatch = useDispatch();
+
+  useSocket(null, {
+    onNotification: (notification) => {
+      if (notification && notification.message) {
+        dispatch(addNotification(notification));
+      }
+    },
+  });
+
+  return (
+    <div className="app-layout">
+      <Sidebar />
+      <main className="main-content">{children}</main>
+    </div>
+  );
+};
 
 // ── Inner app — handles auth bootstrap ────────────────────────────────────────
 const AppInner = () => {
@@ -76,23 +90,23 @@ const AppInner = () => {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* ── Public ─────────────────────────────────────────── */}
-          <Route path="/login"            element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
-          <Route path="/register"         element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
-          <Route path="/forgot-password"  element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
+          <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+          <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+          <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
           {/* Invite — handled inside page (redirects to login if no token) */}
-          <Route path="/invite/:token"    element={<InvitePage />} />
+          <Route path="/invite/:token" element={<InvitePage />} />
 
           {/* ── Protected ──────────────────────────────────────── */}
-          <Route path="/dashboard"  element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
-          <Route path="/projects"   element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsPage /></AppLayout></ProtectedRoute>} />
           <Route path="/projects/:id" element={<ProtectedRoute><AppLayout><ProjectDetailPage /></AppLayout></ProtectedRoute>} />
-          <Route path="/settings"   element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
 
           {/* ── Catch-all ──────────────────────────────────────── */}
-          <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-          <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>
     </Router>

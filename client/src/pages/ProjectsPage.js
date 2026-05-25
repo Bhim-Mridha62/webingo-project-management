@@ -10,6 +10,7 @@ import {
   Plus, FolderKanban, Search, MoreVertical, Archive, Trash2
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import NotificationBell from '../components/NotificationBell';
 
 const ProjectsPage = () => {
   const dispatch = useDispatch();
@@ -93,9 +94,12 @@ const ProjectsPage = () => {
           <h1>Projects</h1>
           <p>Manage all your projects in one place</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-          <Plus size={16} /> New Project
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <NotificationBell />
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus size={16} /> New Project
+          </button>
+        </div>
       </div>
 
       <div className="filters-bar" style={{ justifyContent: 'space-between' }}>

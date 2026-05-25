@@ -26,6 +26,11 @@ module.exports = (io) => {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}${socket.user ? ` (${socket.user.name})` : ''}`);
 
+    if (socket.user) {
+      const userRoom = `user_${socket.user._id}`;
+      socket.join(userRoom);
+    }
+
     // Join project room
     socket.on('join_project', (projectId) => {
       socket.join(projectId);

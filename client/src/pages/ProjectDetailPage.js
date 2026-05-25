@@ -17,6 +17,7 @@ import TaskFilters from '../components/TaskFilters';
 import TaskListView from '../components/TaskListView';
 import TaskModal from '../components/TaskModal';
 import MemberModal from '../components/MemberModal';
+import NotificationBell from '../components/NotificationBell';
 
 const STATUSES = ['Todo', 'In Progress', 'Review', 'Completed'];
 
@@ -146,7 +147,7 @@ const ProjectDetailPage = () => {
       await api.post('/tasks', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
+
       addToast('Task created successfully!', 'success');
       setShowTaskModal(false);
       dispatch(fetchTasks(projectId));
@@ -354,6 +355,7 @@ const ProjectDetailPage = () => {
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <NotificationBell />
           {myRole === 'Admin' && (
             <button className="btn btn-ghost" onClick={() => setShowMemberModal(true)}>
               <UserPlus size={16} /> Add Member
@@ -376,13 +378,13 @@ const ProjectDetailPage = () => {
             const isMe = m.user?._id === user?._id;
             const canRemove = myRole === 'Admin' && !isMe;
             return (
-              <span 
-                key={i} 
-                className="badge badge-todo" 
-                style={{ 
-                  fontSize: 11, 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
+              <span
+                key={i}
+                className="badge badge-todo"
+                style={{
+                  fontSize: 11,
+                  display: 'inline-flex',
+                  alignItems: 'center',
                   gap: '6px',
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid var(--border-color)',
@@ -464,7 +466,7 @@ const ProjectDetailPage = () => {
             <div key={status} className="kanban-column" style={{ display: 'flex', flexDirection: 'column' }}>
               <div className="kanban-column-header" style={{ padding: '14px 16px' }}>
                 <span className="kanban-column-title" style={{ fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center' }}>
-                  <span 
+                  <span
                     className={`badge badge-${status.toLowerCase().replace(' ', '-')}`}
                     style={{ width: 8, height: 8, padding: 0, borderRadius: '50%', marginRight: 8, display: 'inline-block' }}
                   />
@@ -472,7 +474,7 @@ const ProjectDetailPage = () => {
                 </span>
                 <span className="kanban-column-count" style={{ fontSize: '11px' }}>{colTasks.length}</span>
               </div>
-              
+
               <div
                 onDragOver={handleDragOver}
                 onDragEnter={() => handleDragEnter(status)}

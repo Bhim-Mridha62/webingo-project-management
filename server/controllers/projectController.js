@@ -4,7 +4,7 @@ const User = require('../models/User');
 const ActivityLog = require('../models/ActivityLog');
 const Invitation = require('../models/Invitation');
 const crypto = require('crypto');
-const { sendInvitationEmail } = require('../services/emailService');
+const { sendInvitationEmail, sendProjectMemberEmail } = require('../services/emailService');
 
 exports.createProject = async (req, res) => {
   try {
@@ -117,6 +117,15 @@ exports.addMember = async (req, res) => {
       details: `${user.name} added as ${role || 'Viewer'}`,
     });
 
+    req.io.to(`user_${user._id}`).emit('notification', {
+      title: 'Added to project',
+      message: `You were added to "${project.name}" as ${role || 'Viewer'}`,
+      type: 'info',
+      timestamp: Date.now(),
+    });
+
+    sendProjectMemberEmail(user.email, req.user.name, project.name, role || 'Viewer').catch(() => { });
+
     res.json(project);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -162,6 +171,16 @@ exports.sendInvitation = async (req, res) => {
 
     const inviteLink = `${process.env.CLIENT_URL}/invite/${token}`;
     await sendInvitationEmail(email, req.user.name, project.name, inviteLink);
+
+    const registeredUser = await User.findOne({ email });
+    if (registeredUser) {
+      req.io.to(`user_${registeredUser._id}`).emit('notification', {
+        title: 'Project invitation',
+        message: `You have been invited to join "${project.name}". Check your email to accept.`,
+        type: 'info',
+        timestamp: Date.now(),
+      });
+    }
 
     res.json({ message: `Invitation sent to ${email}` });
   } catch (error) {

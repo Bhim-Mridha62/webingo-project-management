@@ -9,6 +9,7 @@ import {
   FolderKanban, CheckCircle, Clock, AlertTriangle, TrendingUp,
   MoreVertical, Archive, Trash2
 } from 'lucide-react';
+import NotificationBell from '../components/NotificationBell';
 
 const DashboardPage = () => {
   const dispatch = useDispatch();
@@ -67,6 +68,7 @@ const DashboardPage = () => {
           <h1>Dashboard</h1>
           <p>Welcome back, {user?.name || 'User'}! Here's your overview.</p>
         </div>
+        <div><NotificationBell /></div>
       </div>
 
       {loading ? (
