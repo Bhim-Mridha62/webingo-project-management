@@ -1,18 +1,12 @@
-import { io } from 'socket.io-client';
 import { useEffect, useRef, useCallback } from 'react';
-
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+import { createSocketClient } from '../services/socketClient';
 
 export const useSocket = (projectId, handlers = {}) => {
   const socketRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    socketRef.current = io(SOCKET_URL, {
-      auth: { token },
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    socketRef.current = createSocketClient(token);
 
     const socket = socketRef.current;
 

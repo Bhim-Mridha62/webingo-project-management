@@ -1,264 +1,112 @@
-// Update and delete project, get activity log, invitation
-const Project = require('../models/Project');
-const User = require('../models/User');
-const ActivityLog = require('../models/ActivityLog');
-const Invitation = require('../models/Invitation');
-const crypto = require('crypto');
-const { sendInvitationEmail, sendProjectMemberEmail } = require('../services/emailService');
+const {
+  createProject,
+  getProjectsForUser,
+  getProjectByIdForUser,
+  updateProject,
+  deleteProjectAndTasks,
+  addProjectMember,
+  sendProjectInvitation,
+  acceptInvitation,
+  getActivityLog,
+  getProjectStats,
+} = require('../services/projectService');
 
 exports.createProject = async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    const project = await Project.create({
-      name,
-      description,
-      createdBy: req.user._id,
-      members: [{ user: req.user._id, role: 'Admin' }]
-    });
-
-    await ActivityLog.create({
-      project: project._id,
-      user: req.user._id,
-      action: 'project_created',
-      details: `Project "${project.name}" created`,
-    });
-
-    res.status(201).json(project);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const { name, description } = req.body;
+  const project = await createProject({ name, description, userId: req.user._id });
+  res.status(201).json(project);
 };
 
 exports.getProjects = async (req, res) => {
-  try {
-    const projects = await Project.find({ 'members.user': req.user._id })
-      .populate('members.user', 'name email profilePicture')
-      .populate('createdBy', 'name email profilePicture')
-      .sort({ createdAt: -1 });
-    res.json(projects);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const projects = await getProjectsForUser(req.user._id);
+  res.json(projects);
 };
 
 exports.getProjectById = async (req, res) => {
-  try {
-    const project = await Project.findOne({
-      _id: req.params.id,
-      'members.user': req.user._id
-    }).populate('members.user', 'name email profilePicture');
-
-    if (!project) return res.status(404).json({ message: 'Project not found' });
-    res.json(project);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const project = await getProjectByIdForUser(req.params.id, req.user._id);
+  if (!project) return res.status(404).json({ message: 'Project not found' });
+  res.json(project);
 };
 
 exports.updateProject = async (req, res) => {
-  try {
-    const project = req.project; // from authorizeProjectRole middleware
-    const { name, description, status } = req.body;
-
-    if (name) project.name = name;
-    if (description !== undefined) project.description = description;
-    if (status) project.status = status;
-
-    await project.save();
-    await project.populate('members.user', 'name email profilePicture');
-
-    await ActivityLog.create({
-      project: project._id,
-      user: req.user._id,
-      action: 'project_updated',
-      details: `Project "${project.name}" updated`,
-    });
-
-    res.json(project);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const project = await updateProject(req.project, req.body, req.user._id);
+  res.json(project);
 };
 
 exports.deleteProject = async (req, res) => {
-  try {
-    const project = req.project;
-    await Project.findByIdAndDelete(project._id);
-
-    // Also delete all tasks in this project
-    const Task = require('../models/Task');
-    await Task.deleteMany({ project: project._id });
-
-    res.json({ message: 'Project deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  await deleteProjectAndTasks(req.project);
+  res.json({ message: 'Project deleted successfully' });
 };
 
 exports.addMember = async (req, res) => {
-  try {
-    const { email, role } = req.body;
-    const project = req.project;
+  const { email, role } = req.body;
+  const result = await addProjectMember({
+    project: req.project,
+    email,
+    role,
+    inviterId: req.user._id,
+    inviterName: req.user.name,
+    io: req.io,
+  });
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found. They must register first.' });
-
-    const isMember = project.members.find(m => (m.user._id || m.user).toString() === user._id.toString());
-    if (isMember) return res.status(400).json({ message: 'User is already a member' });
-
-    project.members.push({ user: user._id, role: role || 'Viewer' });
-    await project.save();
-    await project.populate('members.user', 'name email profilePicture');
-
-    await ActivityLog.create({
-      project: project._id,
-      user: req.user._id,
-      action: 'member_added',
-      details: `${user.name} added as ${role || 'Viewer'}`,
-    });
-
-    req.io.to(`user_${user._id}`).emit('notification', {
-      title: 'Added to project',
-      message: `You were added to "${project.name}" as ${role || 'Viewer'}`,
-      type: 'info',
-      timestamp: Date.now(),
-    });
-
-    sendProjectMemberEmail(user.email, req.user.name, project.name, role || 'Viewer').catch(() => { });
-
-    res.json(project);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (result.error) {
+    return res.status(400).json({ message: result.error });
   }
+
+  res.json(result.project);
 };
 
 exports.removeMember = async (req, res) => {
-  try {
-    const { memberId } = req.params;
-    const project = req.project;
+  const { memberId } = req.params;
 
-    if (memberId === req.user._id.toString()) {
-      return res.status(400).json({ message: 'Cannot remove yourself from the project' });
-    }
-
-    project.members = project.members.filter(m => (m.user._id || m.user).toString() !== memberId);
-    await project.save();
-
-    res.json({ message: 'Member removed' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (memberId === req.user._id.toString()) {
+    return res.status(400).json({ message: 'Cannot remove yourself from the project' });
   }
+
+  req.project.members = req.project.members.filter(
+    (m) => (m.user._id || m.user).toString() !== memberId
+  );
+  await req.project.save();
+
+  res.json({ message: 'Member removed' });
 };
 
 exports.sendInvitation = async (req, res) => {
-  try {
-    const { email, role } = req.body;
-    const project = req.project;
+  const { email, role } = req.body;
+  const result = await sendProjectInvitation({
+    project: req.project,
+    email,
+    role,
+    inviterId: req.user._id,
+    inviterName: req.user.name,
+    io: req.io,
+  });
 
-    // Check if invitation already exists
-    const existing = await Invitation.findOne({ email, project: project._id, status: 'pending' });
-    if (existing) return res.status(400).json({ message: 'Invitation already sent to this email' });
-
-    const token = crypto.randomBytes(32).toString('hex');
-
-    await Invitation.create({
-      project: project._id,
-      email,
-      role: role || 'Viewer',
-      token,
-      invitedBy: req.user._id,
-    });
-
-    const inviteLink = `${process.env.CLIENT_URL}/invite/${token}`;
-    await sendInvitationEmail(email, req.user.name, project.name, inviteLink);
-
-    const registeredUser = await User.findOne({ email });
-    if (registeredUser) {
-      req.io.to(`user_${registeredUser._id}`).emit('notification', {
-        title: 'Project invitation',
-        message: `You have been invited to join "${project.name}". Check your email to accept.`,
-        type: 'info',
-        timestamp: Date.now(),
-      });
-    }
-
-    res.json({ message: `Invitation sent to ${email}` });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (result.error) {
+    return res.status(400).json({ message: result.error });
   }
+
+  res.json({ message: `Invitation sent to ${email}` });
 };
 
 exports.acceptInvitation = async (req, res) => {
-  try {
-    const { token } = req.params;
-    const invitation = await Invitation.findOne({ token, status: 'pending' });
-
-    if (!invitation) return res.status(404).json({ message: 'Invalid or expired invitation' });
-    if (new Date() > invitation.expiresAt) {
-      invitation.status = 'expired';
-      await invitation.save();
-      return res.status(400).json({ message: 'Invitation has expired' });
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ email: invitation.email });
-    if (!user) return res.status(404).json({ message: 'Please register with the invited email first' });
-
-    const project = await Project.findById(invitation.project);
-    if (!project) return res.status(404).json({ message: 'Project not found' });
-
-    const isMember = project.members.find(m => m.user.toString() === user._id.toString());
-    if (!isMember) {
-      project.members.push({ user: user._id, role: invitation.role });
-      await project.save();
-    }
-
-    invitation.status = 'accepted';
-    await invitation.save();
-
-    res.json({ message: `Joined project "${project.name}" successfully`, projectId: project._id });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  const result = await acceptInvitation(req.params.token);
+  if (result.error) {
+    return res.status(400).json({ message: result.error });
   }
+
+  res.json({ message: `Joined project "${result.project.name}" successfully`, projectId: result.project._id });
 };
 
 exports.getActivityLog = async (req, res) => {
-  try {
-    const { id: projectId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-
-    const logs = await ActivityLog.find({ project: projectId })
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const total = await ActivityLog.countDocuments({ project: projectId });
-
-    res.json({ logs, total, page, totalPages: Math.ceil(total / limit) });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const { id: projectId } = req.params;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const data = await getActivityLog(projectId, page, limit);
+  res.json(data);
 };
 
 exports.getProjectStats = async (req, res) => {
-  try {
-    const { id: projectId } = req.params;
-    const Task = require('../models/Task');
-
-    const stats = await Task.aggregate([
-      { $match: { project: require('mongoose').Types.ObjectId.createFromHexString(projectId) } },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-
-    const result = { Todo: 0, 'In Progress': 0, Review: 0, Completed: 0 };
-    stats.forEach(s => { result[s._id] = s.count; });
-
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const stats = await getProjectStats(req.params.id);
+  res.json(stats);
 };

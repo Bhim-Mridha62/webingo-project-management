@@ -35,7 +35,6 @@ const Sidebar = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <div className="sidebar-section-title">Main</div>
           <NavLink to="/dashboard" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={() => setMobileOpen(false)}>
             <LayoutDashboard /> Dashboard
           </NavLink>

@@ -1,155 +1,64 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-
-const generateTokens = (id) => {
-  const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  });
-
-  const refreshToken = jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  });
-
-  return { accessToken, refreshToken };
-};
+const {
+  formatAuthResponse,
+  createUser,
+  authenticateUser,
+  refreshTokens,
+  logoutUser,
+  getUserProfile,
+  updateUserProfile,
+  requestPasswordReset,
+  resetPassword,
+} = require('../services/authService');
 
 exports.register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
+  const result = await createUser({ name, email, password });
 
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    user = await User.create({ name, email, password });
-
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      profilePicture: user.profilePicture,
-      accessToken,
-      refreshToken
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (!result) {
+    return res.status(400).json({ message: 'User already exists' });
   }
+
+  res.status(201).json(formatAuthResponse(result.user, result.tokens));
 };
 
 exports.login = async (req, res) => {
-  try {
-    console.log("hhhh");
+  const { email, password } = req.body;
+  const result = await authenticateUser({ email, password });
 
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (user && (await user.matchPassword(password))) {
-      const { accessToken, refreshToken } = generateTokens(user._id);
-
-      user.refreshToken = refreshToken;
-      await user.save();
-
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        profilePicture: user.profilePicture,
-        accessToken,
-        refreshToken
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
-    }
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).json({ message: error.message });
+  if (!result) {
+    return res.status(401).json({ message: 'Invalid email or password' });
   }
+
+  res.json(formatAuthResponse(result.user, result.tokens));
 };
 
 exports.refreshToken = async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) return res.status(401).json({ message: 'No refresh token provided' });
+  const { token } = req.body;
+  const tokens = await refreshTokens(token);
 
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.id);
-
-    if (!user || user.refreshToken !== token) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
-    }
-
-    const tokens = generateTokens(user._id);
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-
-    res.json(tokens);
-  } catch (error) {
-    res.status(401).json({ message: 'Token refresh failed' });
+  if (!tokens) {
+    return res.status(401).json({ message: 'Invalid refresh token' });
   }
+
+  res.json(tokens);
 };
 
 exports.logout = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id);
-    if (user) {
-      user.refreshToken = '';
-      await user.save();
-    }
-    res.json({ message: 'Logged out successfully' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  await logoutUser(req.user._id);
+  res.json({ message: 'Logged out successfully' });
 };
 
 exports.getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('-password -refreshToken');
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  const user = await getUserProfile(req.user._id);
+  res.json(user);
 };
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, email, currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser && existingUser._id.toString() !== user._id.toString()) {
-        return res.status(400).json({ message: 'Email already in use' });
-      }
-      user.email = email;
+    const user = await updateUserProfile(req.user._id, req.body, req.file);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
-
-    if (name) user.name = name;
-
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ message: 'Current password is required to change password' });
-      }
-      if (!(await user.matchPassword(currentPassword))) {
-        return res.status(401).json({ message: 'Current password is incorrect' });
-      }
-      user.password = newPassword;
-    }
-
-    if (req.file) {
-      const { uploadToCloudinary } = require('../services/cloudinaryService');
-      const uploadResult = await uploadToCloudinary(req.file.buffer, req.file.originalname);
-      user.profilePicture = uploadResult.url;
-    }
-
-    await user.save();
 
     res.json({
       _id: user._id,
@@ -158,58 +67,23 @@ exports.updateProfile = async (req, res) => {
       profilePicture: user.profilePicture,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 };
 
 exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'No user with that email' });
-    }
-
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpire = Date.now() + 60 * 60 * 1000; // 1 hour
-    await user.save();
-
-    try {
-      const { sendPasswordResetEmail } = require('../services/emailService');
-      await sendPasswordResetEmail(user.email, resetToken);
-      res.json({ message: 'Password reset email sent' });
-    } catch (emailErr) {
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpire = undefined;
-      await user.save();
-      console.error('Email send error:', emailErr);
-      res.status(500).json({ message: 'Email could not be sent' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  const { email } = req.body;
+  const result = await requestPasswordReset(email);
+  if (!result) {
+    return res.status(404).json({ message: 'No user with that email' });
   }
+  res.json({ message: 'Password reset email sent' });
 };
 
 exports.resetPassword = async (req, res) => {
-  try {
-    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired token' });
-    }
-
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-
-    res.json({ message: 'Password reset successful' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  const result = await resetPassword(req.params.token, req.body.password);
+  if (!result) {
+    return res.status(400).json({ message: 'Invalid or expired token' });
   }
+  res.json({ message: 'Password reset successful' });
 };
