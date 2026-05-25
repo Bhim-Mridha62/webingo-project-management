@@ -5,6 +5,7 @@ import { logout } from '../store/slices/authSlice';
 import {
   LayoutDashboard, FolderKanban, LogOut, Menu, X, Settings
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const Sidebar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,14 +25,25 @@ const Sidebar = () => {
 
   return (
     <>
-      <button className="mobile-menu-btn" onClick={() => setMobileOpen(!mobileOpen)}>
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      <div className='mobile-menu'>
+        <button className="mobile-menu-btn" onClick={() => setMobileOpen(!mobileOpen)}>
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+        <NotificationBell screen="mobile" />
+      </div>
 
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">W</div>
           <span className="sidebar-title">Webingo PM</span>
+          {mobileOpen && (
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setMobileOpen(false)}
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         <nav className="sidebar-nav">
