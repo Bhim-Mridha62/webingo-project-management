@@ -171,7 +171,7 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          <div style={{ flex: 1, minWidth: 320 }}>
+          <div style={{ flex: 1 }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Account Settings</h3>
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="form-group">

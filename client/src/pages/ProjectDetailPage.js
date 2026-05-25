@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchTasks, taskAdded, taskUpdated, taskDeleted } from '../store/slices/taskSlice';
 import { useSocket } from '../hooks/useSocket';
@@ -23,6 +23,7 @@ const STATUSES = ['Todo', 'In Progress', 'Review', 'Completed'];
 
 const ProjectDetailPage = () => {
   const { id: projectId } = useParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const addToast = useToast();
   const { tasks, loading } = useSelector((state) => state.tasks);
@@ -57,6 +58,7 @@ const ProjectDetailPage = () => {
       const { data } = await api.get(`/projects/${projectId}`);
       setProject(data);
     } catch (err) {
+      navigate("/project", { replace: true });
       addToast('Failed to load project details', 'error');
     }
   }, [projectId, addToast]);
