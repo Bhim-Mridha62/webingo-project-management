@@ -11,8 +11,7 @@ import './index.css';
 // ── Code-split pages ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
-const VerifyEmailPendingPage = lazy(() => import('./pages/VerifyEmailPendingPage'));
+
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
@@ -58,8 +57,7 @@ const AppInner = () => {
         <Routes>
           <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
-          <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
-          <Route path="/verify-email-pending" element={<VerifyEmailPendingPage />} />
+
           <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/invite/:token" element={<InvitePage />} />

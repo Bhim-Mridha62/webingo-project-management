@@ -31,15 +31,8 @@ const LoginPage = () => {
       setValue("password", "");
       const errorPayload = result.payload;
 
-      // Check if it's an email verification error
-      if (typeof errorPayload === 'object' && errorPayload?.needsEmailVerification) {
-        addToast(errorPayload.message, 'warning');
-        sessionStorage.setItem('unverifiedEmail', errorPayload.email);
-        navigate('/verify-email-pending');
-      } else {
-        const errorMessage = typeof errorPayload === 'string' ? errorPayload : 'Login failed';
-        addToast(errorMessage, 'error');
-      }
+      const errorMessage = typeof errorPayload === 'string' ? errorPayload : 'Login failed';
+      addToast(errorMessage, 'error');
     }
   };
 

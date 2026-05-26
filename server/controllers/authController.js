@@ -20,7 +20,7 @@ exports.register = async (req, res) => {
   }
 
   res.status(201).json({
-    message: 'Registration successful. Please verify your email.',
+    message: 'Registration successful.',
     ...formatAuthResponse(result.user, result.tokens)
   });
 };
@@ -33,14 +33,6 @@ exports.login = async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
 
-  // If email is not verified, return pending verification response
-  if (!result.tokens) {
-    return res.status(403).json({
-      message: 'Please verify your email before logging in',
-      email: result.user.email,
-      needsEmailVerification: true
-    });
-  }
 
   res.json(formatAuthResponse(result.user, result.tokens));
 };

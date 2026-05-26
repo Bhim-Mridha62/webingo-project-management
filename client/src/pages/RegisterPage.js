@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useToast } from '../components/Toast';
 import api from '../services/api';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../store/slices/authSlice';
 import { UserPlus, Eye, EyeOff } from 'lucide-react';
 
 const RegisterPage = () => {
@@ -11,6 +13,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const addToast = useToast();
 
+  const dispatch = useDispatch();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data) => {
@@ -27,10 +30,9 @@ const RegisterPage = () => {
       });
       localStorage.setItem('token', res.data.accessToken);
       localStorage.setItem('refreshToken', res.data.refreshToken);
-      addToast(res.data.message || 'Account created! Please verify your email.', 'success');
-      // Store email for reference on verification page
-      sessionStorage.setItem('verificationEmail', res.data.email);
-      navigate('/verify-email-pending');
+      dispatch(setUser(res.data));
+      addToast('Account created successfully!', 'success');
+      navigate('/dashboard');
     } catch (err) {
       addToast(err.response?.data?.message || 'Registration failed', 'error');
     } finally {

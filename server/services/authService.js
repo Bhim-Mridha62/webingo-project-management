@@ -20,19 +20,7 @@ const createUser = async ({ name, email, password }) => {
 
     const user = await User.create({ name, email, password });
 
-    // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationToken = crypto.createHash('sha256').update(verificationToken).digest('hex');
-    user.emailVerificationExpire = Date.now() + 1 * 60 * 1000; // 1 minute
-    await user.save();
 
-    // Send verification email
-    try {
-        await sendEmailVerificationEmail(user.email, verificationToken);
-    } catch (error) {
-        console.error('Failed to send verification email:', error);
-        // Don't fail registration if email fails, user can still verify later
-    }
 
     // Generate tokens for immediate login
     const tokens = generateTokens(user._id);
@@ -46,10 +34,7 @@ const authenticateUser = async ({ email, password }) => {
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password))) return null;
 
-    // Check if email is verified
-    if (!user.isEmailVerified) {
-        return { user, tokens: null, needsEmailVerification: true };
-    }
+
 
     const tokens = generateTokens(user._id);
     user.refreshToken = tokens.refreshToken;

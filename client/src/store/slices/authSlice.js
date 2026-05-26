@@ -9,14 +9,7 @@ export const login = createAsyncThunk('auth/login', async (credentials, thunkAPI
     localStorage.setItem('refreshToken', response.data.refreshToken);
     return response.data;
   } catch (error) {
-    // Check if it's an email verification error
-    if (error.response?.status === 403 && error.response?.data?.needsEmailVerification) {
-      return thunkAPI.rejectWithValue({
-        message: error.response.data.message,
-        needsEmailVerification: true,
-        email: error.response.data.email
-      });
-    }
+
     return thunkAPI.rejectWithValue(error.response?.data?.message || 'Login failed');
   }
 });
